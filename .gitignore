@@ -1,0 +1,43 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+
+# Environments
+.venv/
+venv/
+.env
+
+# IDEs
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Datasets (too large to commit, download separately)
+data/
+
+# Feature caches (regenerable via precache_features.py)
+output/feature_cache/
+output/feature_cache_clip/
+
+# Analysis outputs (regenerable via analysis scripts)
+output/analysis/
+output/analysis_clip/
+
+# Logs
+output/exp_p3_002_full/log.txt
+output/exp_p3_002_full/errors.txt
+*.log
+
+# Large binary files
+*.npy
+*.npz
+*.pt
+*.pth
+*.ckpt
+*.bin
+*.safetensors

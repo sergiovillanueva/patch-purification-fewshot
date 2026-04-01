@@ -1,0 +1,9 @@
+numpy
+scipy
+scikit-learn
+tqdm
+pyyaml
+matplotlib
+Pillow
+transformers>=4.36.0
+scikit-posthocs>=0.12.0

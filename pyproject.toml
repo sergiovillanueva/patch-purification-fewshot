@@ -1,0 +1,25 @@
+[project]
+name = "patch-purification-fewshot"
+version = "0.1.0"
+description = "Patch purification for contaminated few-shot memory banks"
+readme = "README.md"
+requires-python = ">=3.11,<3.12"
+dependencies = [
+    "numpy",
+    "scipy",
+    "scikit-learn",
+    "tqdm",
+    "pyyaml",
+    "matplotlib",
+    "Pillow",
+    "transformers>=4.36.0",
+    "scikit-posthocs>=0.12.0",
+]
+
+[project.optional-dependencies]
+# Optional speed-up for kNN. The code works without FAISS.
+faiss = [
+    "faiss-cpu; platform_system != 'Windows'",
+]
+
+
