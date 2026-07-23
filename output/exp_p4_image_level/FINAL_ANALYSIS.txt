@@ -1,0 +1,113 @@
+P4 rows: 32037 raw -> 32037 unique after dedup
+
+[1] SANITY protocol fidelity: max |P4_none - leakage_none| over 35 cats = 4.00e-05  OK
+
+[2] SETUP B (honest evaluation)
+
+### Setup B | N=10 | c=0.3 | cats=35 | clean=0.8591 dirty=0.8415 damage=0.0176 (p=2.5e-05)
+method                   AUROC     gain  recov%        p   wins  cleanPen  remP  remR
+imgmax_mad1.0           0.8489  +0.0074    42.1  1.7e-03  27/35   -0.0043  0.91  0.69
+imgmax_mad1.5           0.8480  +0.0065    36.8  2.0e-03  27/35   -0.0018  0.94  0.52
+imgmax_mad2.0           0.8457  +0.0042    24.1  4.9e-03  27/35   -0.0005  0.95  0.37
+imgq99_mad1.5           0.8424  +0.0009     5.2  3.2e-01  22/35   -0.0062  0.89  0.64
+imgt5_mad1.5            0.8433  +0.0018    10.4  1.9e-01  24/35   -0.0070  0.90  0.66
+imgmax_known_c          0.8494  +0.0079    45.0  8.3e-03  25/35      +nan  0.84  0.84
+image_auto_mad2.0       0.8398  -0.0017    -9.7  7.4e-01  19/35   -0.0069  0.83  0.37
+image_known_c           0.8337  -0.0078   -44.4  9.6e-02  17/35      +nan  0.66  0.66
+patch_ensemble          0.8406  -0.0009    -5.3  5.9e-01  18/35   -0.0051   nan   nan
+random_patch            0.8421  +0.0006     3.3  1.3e-01  21/35   +0.0001   nan   nan
+oracle_images           0.8518  +0.0103    58.7  3.0e-03  25/35   +0.0000   nan   nan
+
+### Setup B | N=20 | c=0.3 | cats=35 | clean=0.8704 dirty=0.8498 damage=0.0205 (p=4.0e-07)
+method                   AUROC     gain  recov%        p   wins  cleanPen  remP  remR
+imgmax_mad1.0           0.8594  +0.0096    46.6  2.3e-04  27/35   -0.0052  0.87  0.70
+imgmax_mad1.5           0.8582  +0.0084    40.9  3.1e-05  27/35   -0.0028  0.93  0.51
+imgmax_mad2.0           0.8550  +0.0052    25.2  2.4e-04  26/35   -0.0017  0.94  0.35
+imgq99_mad1.5           0.8569  +0.0071    34.4  1.2e-04  29/35   -0.0057  0.87  0.64
+imgt5_mad1.5            0.8561  +0.0063    30.7  5.0e-04  28/35   -0.0053  0.89  0.62
+imgmax_known_c          0.8612  +0.0114    55.3  1.1e-04  30/35      +nan  0.82  0.82
+image_auto_mad2.0       0.8496  -0.0002    -1.2  8.8e-02  22/35   -0.0055  0.87  0.35
+image_known_c           0.8461  -0.0038   -18.4  5.6e-01  18/35      +nan  0.66  0.66
+patch_ensemble          0.8508  +0.0010     4.8  6.6e-01  15/35   -0.0056   nan   nan
+random_patch            0.8497  -0.0001    -0.6  9.4e-01  20/35   -0.0004   nan   nan
+oracle_images           0.8648  +0.0149    72.7  2.5e-05  28/35   +0.0000   nan   nan
+
+[3] Default rule across contamination rates (Setup B, N=10, imgmax_mad)
+  --- k=1.0 ---
+  c=0.1: damage=+0.0058  gain=+0.0019 (recovery  33.0%)  p=3.2e-02
+  c=0.2: damage=+0.0104  gain=+0.0037 (recovery  35.9%)  p=4.2e-03
+  c=0.3: damage=+0.0176  gain=+0.0074 (recovery  42.1%)  p=1.7e-03
+  --- k=1.5 ---
+  c=0.1: damage=+0.0058  gain=+0.0020 (recovery  35.0%)  p=1.9e-02
+  c=0.2: damage=+0.0104  gain=+0.0048 (recovery  46.7%)  p=2.7e-03
+  c=0.3: damage=+0.0176  gain=+0.0065 (recovery  36.8%)  p=2.0e-03
+
+[4] Per benchmark (Setup B, N=10, c=0.3, imgmax_mad k=1.5 vs oracle)
+  VisA             damage=+0.0295  k1.5 gain=+0.0110 ( 37.4%)  oracle gain=+0.0211 (n=12)
+  btad             damage=+0.0035  k1.5 gain=+0.0020 ( 57.8%)  oracle gain=+0.0042 (n=3)
+  mvtec_AD         damage=+0.0133  k1.5 gain=+0.0059 ( 44.4%)  oracle gain=+0.0060 (n=15)
+  mvtec_loco_AD    damage=+0.0100  k1.5 gain=-0.0002 ( -1.8%)  oracle gain=+0.0009 (n=5)
+
+[5] SETUP A (shared pool) - the protocol-inflation exhibit
+
+### Setup A | N=10 | c=0.3 | cats=35 | clean=0.8573 dirty=0.8105 damage=0.0468 (p=5.8e-11)
+method                   AUROC     gain  recov%        p   wins  cleanPen  remP  remR
+imgmax_mad1.0           0.8365  +0.0260    55.6  2.6e-08  31/35   -0.0041  0.88  0.68
+imgmax_mad1.5           0.8308  +0.0203    43.5  5.3e-08  32/35   -0.0018  0.94  0.51
+imgmax_mad2.0           0.8257  +0.0152    32.5  3.2e-06  31/35   -0.0007  0.96  0.40
+imgq99_mad1.5          (no data)
+imgt5_mad1.5           (no data)
+imgmax_known_c          0.8410  +0.0305    65.2  3.7e-08  32/35      +nan  0.83  0.83
+image_auto_mad2.0       0.8212  +0.0108    23.0  8.8e-04  28/35   -0.0062  0.85  0.39
+image_known_c           0.8275  +0.0170    36.4  1.9e-04  29/35      +nan  0.67  0.67
+patch_ensemble          0.8344  +0.0239    51.1  1.9e-07  30/35   -0.0049   nan   nan
+random_patch            0.8107  +0.0003     0.6  8.5e-01  19/35   -0.0003   nan   nan
+oracle_images           0.8502  +0.0397    85.0  2.9e-10  33/35   -0.0000   nan   nan
+
+[6] Quality gate TPR@FPR=1% (Setup B, N=10, c=0.3)
+  none             TPR@1%=0.4719  TPR@5%=0.5847
+  imgmax_mad1.0    TPR@1%=0.4891  TPR@5%=0.5990
+  imgmax_mad1.5    TPR@1%=0.4867  TPR@5%=0.5985
+  clean reference  TPR@1%=0.5019  TPR@5%=0.6274
+
+[7] Operational behavior: mean images removed per bank (Setup B, N=10)
+  imgmax_mad k=1.0 c=0.0: removed 1.99 of 10 images (contaminated present: 0)
+  imgmax_mad k=1.0 c=0.3: removed 2.30 of 10 images (contaminated present: 3)
+  imgmax_mad k=1.5 c=0.0: removed 1.20 of 10 images (contaminated present: 0)
+  imgmax_mad k=1.5 c=0.3: removed 1.67 of 10 images (contaminated present: 3)
+  imgmax_mad k=2.0 c=0.0: removed 0.70 of 10 images (contaminated present: 0)
+  imgmax_mad k=2.0 c=0.3: removed 1.15 of 10 images (contaminated present: 3)
+
+[8] Bootstrap 95% CI of the gain and Holm correction over k grid (Setup B, c=0.3, gain vs none, per-category units)
+  N=10:
+    k=1.0: gain=+0.0074  CI95=[+0.0027,+0.0124]  p=1.7e-03  Holm-p=5.1e-03  wins=27/35
+    k=1.5: gain=+0.0065  CI95=[+0.0025,+0.0110]  p=2.0e-03  Holm-p=5.1e-03  wins=27/35
+    k=2.0: gain=+0.0042  CI95=[+0.0011,+0.0077]  p=4.9e-03  Holm-p=5.1e-03  wins=27/35
+  N=20:
+    k=1.0: gain=+0.0096  CI95=[+0.0048,+0.0151]  p=2.3e-04  Holm-p=4.6e-04  wins=27/35
+    k=1.5: gain=+0.0084  CI95=[+0.0048,+0.0127]  p=3.1e-05  Holm-p=9.4e-05  wins=27/35
+    k=2.0: gain=+0.0052  CI95=[+0.0028,+0.0080]  p=2.4e-04  Holm-p=4.6e-04  wins=26/35
+
+[9] AUPR within Setup B (N=10, c=0.3)
+  none             AUPR=0.8355 (n=35)
+  imgmax_mad1.5    AUPR=0.8410 (n=35)
+  clean reference  AUPR=0.8534
+
+[10] N=5 under Setup B (c=0.3)
+
+### Setup B | N=5 | c=0.3 | cats=35 | clean=0.8479 dirty=0.8237 damage=0.0242 (p=1.6e-07)
+method                   AUROC     gain  recov%        p   wins  cleanPen  remP  remR
+imgmax_mad1.0           0.8294  +0.0057    23.6  5.4e-02  23/35   -0.0062  0.88  0.53
+imgmax_mad1.5           0.8283  +0.0046    19.0  5.2e-02  20/35   -0.0040  0.88  0.41
+imgmax_mad2.0           0.8280  +0.0043    17.7  3.3e-02  19/35   -0.0030  0.88  0.29
+imgq99_mad1.5           0.8286  +0.0049    20.4  4.4e-02  24/35   -0.0075  0.89  0.50
+imgt5_mad1.5            0.8272  +0.0035    14.6  3.3e-02  24/35   -0.0084  0.94  0.47
+imgmax_known_c          0.8290  +0.0053    21.7  2.1e-01  23/35      +nan  0.84  0.84
+image_auto_mad2.0       0.8235  -0.0002    -1.0  9.9e-01  18/35   -0.0074  0.89  0.29
+image_known_c           0.8171  -0.0066   -27.2  3.1e-01  17/35      +nan  0.70  0.70
+
+[11] CLIP backbone, Setup B (N=10, c=0.3)
+  cats=35 clean=0.8678 dirty=0.8470 damage=0.0208
+  imgmax_mad k=1.0: gain=-0.0016 (recovery -7.6%) p=3.5e-01 n=35
+  imgmax_mad k=1.5: gain=-0.0010 (recovery -4.7%) p=9.4e-01 n=35
+  imgmax_mad k=2.0: gain=-0.0018 (recovery -8.5%) p=4.1e-01 n=35

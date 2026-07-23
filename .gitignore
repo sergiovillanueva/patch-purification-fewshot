@@ -23,6 +23,7 @@ data/
 # Feature caches (regenerable via precache_features.py)
 output/feature_cache/
 output/feature_cache_clip/
+output/feature_cache_dinov2/
 
 # Analysis outputs (regenerable via analysis scripts)
 output/analysis/

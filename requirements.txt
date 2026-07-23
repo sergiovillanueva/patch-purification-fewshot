@@ -1,9 +1,15 @@
+# Minimum to reproduce every paper number from the pre-computed CSVs
+# (python analysis_p4_final.py / python analysis_p5.py):
 numpy
 scipy
+
+# Additionally required to re-run the experiments from scratch (CPU):
 scikit-learn
-tqdm
-pyyaml
-matplotlib
 Pillow
-transformers>=4.36.0
-scikit-posthocs>=0.12.0
+faiss-cpu          # nearest-neighbor search in exp_p3_002_dirty_fewshot_full.py
+psutil             # optional: lowers process priority during long runs
+
+# Additionally required for feature extraction (precache_features.py, GPU):
+transformers
+# torch and torchvision: install for your hardware from
+# https://pytorch.org/get-started/locally/

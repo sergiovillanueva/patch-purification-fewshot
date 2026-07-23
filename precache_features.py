@@ -17,10 +17,10 @@ Output structure:
     ...
 
 Usage:
-  python precache_features.py                      # DINOv3, all 35 datasets
-  python precache_features.py --backbone clip      # CLIP ViT-L/14, all 35 datasets
-  python precache_features.py --debug              # 2 datasets only
-  python precache_features.py --backbone clip --debug
+  uv run precache_features.py                      # DINOv3, all 35 datasets
+  uv run precache_features.py --backbone clip      # CLIP ViT-L/14, all 35 datasets
+  uv run precache_features.py --debug              # 2 datasets only
+  uv run precache_features.py --backbone clip --debug
 """
 
 import os
@@ -53,9 +53,10 @@ transformers.logging.set_verbosity_error()
 
 parser = argparse.ArgumentParser(description="Pre-cache features for all datasets")
 parser.add_argument("--debug", action="store_true", help="Only 2 datasets")
-parser.add_argument("--backbone", choices=["dino", "clip"], default="dino",
-                    help="Backbone: dino (DINOv3-ViT-L, 448×448, 784 patches) or "
-                         "clip (CLIP ViT-L/14, 224×224, 256 patches)")
+parser.add_argument("--backbone", choices=["dino", "clip", "dinov2"], default="dino",
+                    help="Backbone: dino (DINOv3-ViT-L, 448×448, 784 patches), "
+                         "clip (CLIP ViT-L/14, 224×224, 256 patches) or "
+                         "dinov2 (DINOv2-ViT-L/14, 448×448, 1024 patches)")
 _ARGS = parser.parse_args()
 DEBUG = _ARGS.debug
 BACKBONE = _ARGS.backbone
@@ -74,6 +75,11 @@ elif BACKBONE == "clip":
     RESOLUTION = 224
     LAYER_IDX = -6  # Use intermediate layer for richer features (like DINOv3)
     BATCH_SIZE = 32  # CLIP is smaller, can use larger batch
+elif BACKBONE == "dinov2":
+    CACHE_DIR = Path("output/feature_cache_dinov2")
+    RESOLUTION = 448  # 448 / 14 = 32 -> 1024 patches
+    LAYER_IDX = -6
+    BATCH_SIZE = 12  # 1024 patch tokens per image, keep VRAM in check
 
 # 35 datasets (MVTec AD + VisA + BTAD + MVTec LOCO AD)
 ALL_DATASETS = [
@@ -100,16 +106,24 @@ ALL_DATASETS = [
 # =============================================================================
 
 class DINOv3Extractor:
-    def __init__(self, device: str = "cuda"):
+    def __init__(self, device: str = "cuda",
+                 model_name: str = "facebook/dinov3-vitl16-pretrain-lvd1689m",
+                 patch_size: int = 16,
+                 num_register: int | None = None):
+        """Also used for DINOv2 (patch_size=14, num_register=0: DINOv2 has no
+        register tokens, so the config-based default of 4 would silently drop
+        four real patch tokens)."""
         self.device = device
-        model_name = "facebook/dinov3-vitl16-pretrain-lvd1689m"
-        print(f"[FEAT] Loading DINOv3-ViT-L on {device}...")
+        print(f"[FEAT] Loading {model_name} on {device}...")
         self.model = AutoModel.from_pretrained(model_name).to(device).eval()
 
-        self.patch_size = 16
+        self.patch_size = patch_size
         self.grid_size = RESOLUTION // self.patch_size
         self.num_patches = self.grid_size * self.grid_size
-        self.num_register = getattr(self.model.config, "num_register_tokens", 4)
+        if num_register is not None:
+            self.num_register = num_register
+        else:
+            self.num_register = getattr(self.model.config, "num_register_tokens", 4)
         self.feature_dim = self.model.config.hidden_size
 
         from torchvision import transforms
@@ -195,7 +209,7 @@ class CLIPExtractor:
 
             # Extract patch tokens from intermediate layer (skip [CLS] token at position 0)
             hidden = outputs.hidden_states[LAYER_IDX]  # (batch, 1+256, 1024)
-            patch_features = hidden[:, 1:, :]  # (batch, 256, 1024) — drop CLS token
+            patch_features = hidden[:, 1:, :]  # (batch, 256, 1024), drop CLS token
 
             all_features.append(patch_features.float().cpu().numpy())
 
@@ -271,7 +285,8 @@ def safe_name(dataset_name: str) -> str:
 def main():
     datasets = ALL_DATASETS[:2] if DEBUG else ALL_DATASETS
 
-    backbone_name = "DINOv3-ViT-L" if BACKBONE == "dino" else "CLIP ViT-L/14"
+    backbone_name = {"dino": "DINOv3-ViT-L", "clip": "CLIP ViT-L/14",
+                     "dinov2": "DINOv2-ViT-L/14"}[BACKBONE]
     print("=" * 70)
     print(f"PRECACHE: {backbone_name} Feature Extraction")
     print(f"  Mode: {'DEBUG' if DEBUG else 'FULL'}")
@@ -283,6 +298,9 @@ def main():
 
     if BACKBONE == "dino":
         extractor = DINOv3Extractor(DEVICE)
+    elif BACKBONE == "dinov2":
+        extractor = DINOv3Extractor(DEVICE, model_name="facebook/dinov2-large",
+                                    patch_size=14, num_register=0)
     else:
         extractor = CLIPExtractor(DEVICE)
     t_start = time.time()

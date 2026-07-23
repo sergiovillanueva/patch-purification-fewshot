@@ -1,23 +1,31 @@
 """
-Dirty Few-Shot: Self-Purification of Contaminated Support Sets
+P3_002: Core few-shot memory-bank experiment harness (contaminated support sets).
 ================================================================================
-Detect and expel contaminating patches from the memory bank via leave-one-out
-consistency scoring, before using them for test-time anomaly detection.
+This is the base experiment engine. It builds few-shot memory banks from cached
+features, injects contamination under two protocols (shared pool and disjoint
+pool), applies the patch-level baselines (leave-one-out consistency, Mahalanobis,
+their ensemble, LOF, random-patch and oracle references), and computes the
+image-level metrics used throughout the paper.
 
-Selected purification method: remove top-K% most inconsistent patches (ensemble
-of LOO consistency and Mahalanobis distance).
+It produces the two reference CSVs that the analysis scripts read:
+  - output/exp_p3_002_full/results_v2.csv            (shared-pool protocol)
+  - output/exp_p3_002_full/results_leakage_check.csv (disjoint-pool protocol)
 
-REQUIRES: Run precache_features.py first to extract features to disk.
-This script is CPU-only (no GPU needed after feature caching).
+The paper's finding is that the patch-level baselines do not recover the damage
+under the disjoint-pool protocol; the deployable remedy is the image-level audit
+in exp_p4_image_level.py. This script is kept as the shared infrastructure and
+as the source of the protocol-comparison exhibit.
 
-Usage:
-  python run_experiments.py                         # Main: 35 datasets, 5 seeds
-  python run_experiments.py --debug                 # Debug: 2 datasets, 1 seed
-  python run_experiments.py --ablation percentile   # Ablation: vary percentile threshold
-  python run_experiments.py --ablation knn_k        # Ablation: vary KNN K
-  python run_experiments.py --backbone clip          # Use CLIP backbone
+REQUIRES: run precache_features.py first to extract DINOv3 features to disk.
+CPU-only (no GPU needed).
 
-Backbone: DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) or CLIP ViT-L/14
+Run modes:
+  python exp_p3_002_dirty_fewshot_full.py                       # Main: 35 datasets, 5 seeds, TL=5,10,20
+  python exp_p3_002_dirty_fewshot_full.py --debug               # Debug: 2 datasets, 1 seed, TL=10
+  python exp_p3_002_dirty_fewshot_full.py --ablation percentile # Ablation: vary percentile threshold
+  python exp_p3_002_dirty_fewshot_full.py --ablation knn_k      # Ablation: vary KNN K
+
+Backbone: DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m), features pre-cached.
 """
 
 import os
@@ -38,12 +46,7 @@ from collections import defaultdict
 warnings.filterwarnings("ignore")
 
 import numpy as np
-try:
-    import faiss  # type: ignore
-    _FAISS_AVAILABLE = True
-except Exception:
-    faiss = None
-    _FAISS_AVAILABLE = False
+import faiss
 from sklearn.metrics import roc_auc_score, average_precision_score, f1_score, precision_recall_curve
 from sklearn.neighbors import NearestNeighbors
 from sklearn.ensemble import IsolationForest
@@ -165,12 +168,14 @@ PURIFICATION_METHODS = [
     "none", "loo_patch", "adaptive_loo_patch",
     "random_patch", "mahalanobis_patch", "image_level_loo",
     "isolation_forest_patch", "global_iforest", "oracle_patch",
+    # Additional methods
     "ensemble_loo_mahal",   # Ensemble LOO + Mahalanobis scores (normalized + combined)
     "iterative_loo",        # Multi-round LOO: remove worst, recompute, repeat
     "cosine_loo",           # LOO with cosine distance instead of euclidean
     "lof_patch",            # Local Outlier Factor on patches
     "pca_patch",            # PCA reconstruction error as anomaly score
     "grubbs_adaptive_loo",  # LOO with Grubbs test for contamination detection
+    # Extended methods
     "gmm_adaptive_loo",    # LOO with GMM+BIC contamination detection
     "mad_adaptive_loo",    # LOO with MAD z-score contamination detection
 ]
@@ -231,7 +236,7 @@ TL5_METHODS = [
     "none", "loo_patch", "mahalanobis_patch", "ensemble_loo_mahal",
 ]
 
-# Ablation percentile on all 35 datasets
+# Ablation percentile on all datasets
 ABLATION_FULL_PCT_VALUES = [90, 95, 99]
 ABLATION_FULL_PCT_METHODS = ["ensemble_loo_mahal"]  # Only ensemble (best method)
 
@@ -240,7 +245,7 @@ ABLATION_FULL_PCT_METHODS = ["ensemble_loo_mahal"]  # Only ensemble (best method
 PIXEL_AUROC_EVAL_SHAPE = (448, 448)  # Standard evaluation resolution (same as Anomalib)
 PIXEL_AUROC_PATCH_GRID = 28  # sqrt(784 patches)
 PIXEL_AUROC_CONTAMINATION_RATES = [0.0, 0.3]
-PIXEL_AUROC_METHODS = [  # Only 3 essential — enough for localization table
+PIXEL_AUROC_METHODS = [  # Only 3 essential, enough for localization table
     "none",                    # dirty baseline
     "ensemble_loo_mahal",      # best method
     "oracle_patch",            # upper bound
@@ -348,8 +353,6 @@ def _kneighbors(knn: NearestNeighbors, x: np.ndarray, n_jobs: Optional[int]) -> 
 
 def _faiss_knn_l2(bank: np.ndarray, queries: np.ndarray, k: int) -> np.ndarray:
     """Fast exact L2 kNN using FAISS. Returns euclidean distances (n_queries, k)."""
-    if not _FAISS_AVAILABLE:
-        raise RuntimeError("FAISS not available")
     bank_f32 = np.ascontiguousarray(bank, dtype=np.float32)
     queries_f32 = np.ascontiguousarray(queries, dtype=np.float32)
     index = faiss.IndexFlatL2(bank_f32.shape[1])
@@ -364,9 +367,7 @@ def _faiss_knn_cosine(bank: np.ndarray, queries: np.ndarray, k: int) -> np.ndarr
 
     Returns cosine distances (1 - cosine_similarity) with shape (n_queries, k).
     """
-    if not _FAISS_AVAILABLE:
-        raise RuntimeError("FAISS not available")
-    # IMPORTANT: copy before normalize_L2 — it mutates in-place
+    # IMPORTANT: copy before normalize_L2, it mutates in-place
     bank_f32 = np.ascontiguousarray(bank, dtype=np.float32).copy()
     queries_f32 = np.ascontiguousarray(queries, dtype=np.float32).copy()
     # L2-normalize for cosine similarity via inner product
@@ -377,16 +378,6 @@ def _faiss_knn_cosine(bank: np.ndarray, queries: np.ndarray, k: int) -> np.ndarr
     similarities, _ = index.search(queries_f32, k)
     # cosine_distance = 1 - cosine_similarity
     return np.maximum(0, 1.0 - similarities)
-
-
-def _sklearn_knn_distances(bank: np.ndarray, queries: np.ndarray, k: int, metric: str) -> np.ndarray:
-    """Exact kNN distances using sklearn (portable fallback when FAISS is unavailable)."""
-    bank_f32 = np.ascontiguousarray(bank, dtype=np.float32)
-    queries_f32 = np.ascontiguousarray(queries, dtype=np.float32)
-    knn = NearestNeighbors(n_neighbors=k, metric=metric, algorithm="brute")
-    knn.fit(bank_f32)
-    distances, _ = _kneighbors(knn, queries_f32, DEFAULT_N_JOBS)
-    return distances
 
 
 # =============================================================================
@@ -472,10 +463,7 @@ def compute_loo_consistency(
 
         # Distance of each patch in image i to its nearest neighbors in the bank
         patches = features[i]  # (n_patches, dim)
-        if _FAISS_AVAILABLE:
-            distances = _faiss_knn_l2(bank, patches, k)
-        else:
-            distances = _sklearn_knn_distances(bank, patches, k, metric="euclidean")
+        distances = _faiss_knn_l2(bank, patches, k)
         patch_scores[i] = distances.mean(axis=1)  # Mean of k distances
 
     image_scores = patch_scores.mean(axis=1)  # Mean inconsistency per image
@@ -781,7 +769,7 @@ def purify_oracle_patch(
     keep_mask = np.array([not flag for flag in is_contaminated])
 
     if keep_mask.sum() == 0:
-        # All contaminated — keep at least something
+        # All contaminated, keep at least something
         flat_bank = features.reshape(-1, dim)
         return flat_bank, 0
 
@@ -793,7 +781,7 @@ def purify_oracle_patch(
 
 
 # =============================================================================
-# PURIFICATION: ENSEMBLE AND ADDITIONAL METHODS
+# PURIFICATION: ADDITIONAL METHODS
 # =============================================================================
 
 def purify_ensemble_loo_mahal(
@@ -945,10 +933,7 @@ def compute_loo_consistency_cosine(
         if bank.shape[0] < k:
             continue
 
-        if _FAISS_AVAILABLE:
-            distances = _faiss_knn_cosine(bank, features[i], k)
-        else:
-            distances = _sklearn_knn_distances(bank, features[i], k, metric="cosine")
+        distances = _faiss_knn_cosine(bank, features[i], k)
         patch_scores[i] = distances.mean(axis=1)
 
     image_scores = patch_scores.mean(axis=1)
@@ -1289,13 +1274,10 @@ def compute_knn_scores(
     if bank.shape[0] < k:
         raise ValueError(f"Bank too small for kNN (bank_patches={bank.shape[0]} < k={k})")
 
+    # Build FAISS index once, query in chunks
     bank_f32 = np.ascontiguousarray(bank, dtype=np.float32)
-    if _FAISS_AVAILABLE:
-        index = faiss.IndexFlatL2(dim)
-        index.add(bank_f32)
-    else:
-        knn = NearestNeighbors(n_neighbors=k, metric="euclidean", algorithm="brute")
-        knn.fit(bank_f32)
+    index = faiss.IndexFlatL2(dim)
+    index.add(bank_f32)
 
     # Pre-reshape test features to 2D for efficient chunked queries
     test_flat = test_features.reshape(-1, dim)  # (n_test * n_patches, dim)
@@ -1308,11 +1290,8 @@ def compute_knn_scores(
     for start in range(0, n_test, chunk_size):
         end = min(start + chunk_size, n_test)
         chunk = np.ascontiguousarray(test_flat[start * n_patches : end * n_patches], dtype=np.float32)
-        if _FAISS_AVAILABLE:
-            sq_dists, _ = index.search(chunk, k)
-            distances = np.sqrt(np.maximum(0, sq_dists))
-        else:
-            distances, _ = _kneighbors(knn, chunk, DEFAULT_N_JOBS)
+        sq_dists, _ = index.search(chunk, k)
+        distances = np.sqrt(np.maximum(0, sq_dists))
         patch_scores = distances.mean(axis=1).reshape(end - start, n_patches)
         # Use np.partition (O(n)) instead of np.percentile (O(n log n))
         partitioned = np.partition(patch_scores, pct_idx, axis=1)
@@ -1347,12 +1326,8 @@ def compute_knn_scores_with_maps(
         raise ValueError(f"Bank too small for kNN (bank_patches={bank.shape[0]} < k={k})")
 
     bank_f32 = np.ascontiguousarray(bank, dtype=np.float32)
-    if _FAISS_AVAILABLE:
-        index = faiss.IndexFlatL2(dim)
-        index.add(bank_f32)
-    else:
-        knn = NearestNeighbors(n_neighbors=k, metric="euclidean", algorithm="brute")
-        knn.fit(bank_f32)
+    index = faiss.IndexFlatL2(dim)
+    index.add(bank_f32)
 
     test_flat = test_features.reshape(-1, dim)
     pct_idx = int(np.ceil(0.95 * n_patches)) - 1
@@ -1364,11 +1339,8 @@ def compute_knn_scores_with_maps(
     for start in range(0, n_test, chunk_size):
         end = min(start + chunk_size, n_test)
         chunk = np.ascontiguousarray(test_flat[start * n_patches : end * n_patches], dtype=np.float32)
-        if _FAISS_AVAILABLE:
-            sq_dists, _ = index.search(chunk, k)
-            distances = np.sqrt(np.maximum(0, sq_dists))
-        else:
-            distances, _ = _kneighbors(knn, chunk, DEFAULT_N_JOBS)
+        sq_dists, _ = index.search(chunk, k)
+        distances = np.sqrt(np.maximum(0, sq_dists))
         patch_scores = distances.mean(axis=1).reshape(end - start, n_patches)
         all_patch_scores[start:end] = patch_scores
         partitioned = np.partition(patch_scores, pct_idx, axis=1)
@@ -2539,11 +2511,11 @@ def analyze_gate_check(csv_path: Path) -> None:
             print(f"  Oracle: {oracle_auroc:.4f} ({pct:.1f}% of oracle gap achieved)")
 
         if ensemble_auroc is not None and ensemble_auroc >= loo_auroc and ensemble_auroc >= (mahal_auroc or 0):
-            print(f"\n  PASS: Ensemble performance exceeds individual LOO and Mahalanobis components.")
+            print(f"\n  PASS: Ensemble beats both LOO and Mahalanobis. Framework narrative supported.")
         elif mahal_auroc is not None and loo_auroc > mahal_auroc:
-            print(f"\n  PASS: LOO performance exceeds Mahalanobis baseline.")
+            print(f"\n  PASS: LOO beats Mahalanobis baseline.")
         elif mahal_auroc is not None:
-            print(f"\n  NOTE: LOO underperforms Mahalanobis on this subset.")
+            print(f"\n  NOTE: LOO does NOT beat Mahalanobis. Ensemble/framework narrative needed.")
         else:
             print(f"\n  ? GATE CHECK INCONCLUSIVE: Mahalanobis results missing.")
 
@@ -2727,7 +2699,7 @@ def run_tl5(args) -> None:
 
 
 # =============================================================================
-# ABLATION PERCENTILE ON 35 DATASETS
+# ABLATION PERCENTILE ON ALL DATASETS
 # =============================================================================
 
 def run_ablation_full_pct(args) -> None:
@@ -3532,10 +3504,10 @@ def main() -> None:
         CACHE_DIR = Path("output/feature_cache_clip")
         OUTPUT_DIR = Path("output/exp_p3_002_full_clip")
         OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
-        print(f"[BACKBONE] CLIP ViT-L/14 — cache: {CACHE_DIR}, output: {OUTPUT_DIR}")
+        print(f"[BACKBONE] CLIP ViT-L/14, cache: {CACHE_DIR}, output: {OUTPUT_DIR}")
         if not CACHE_DIR.exists() or not any(CACHE_DIR.iterdir()):
             print(f"\n[ERROR] CLIP feature cache not found at {CACHE_DIR}")
-            print(f"  Run first: python precache_features.py --backbone clip")
+            print(f"  Run first: uv run precache_features.py --backbone clip")
             sys.exit(1)
     else:
         CACHE_DIR = Path("output/feature_cache")

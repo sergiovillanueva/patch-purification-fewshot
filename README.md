@@ -1,162 +1,143 @@
-# Patch Purification for Contaminated Few-Shot Memory Banks
+# Training-free reference auditing for few-shot industrial visual inspection
 
-This repository contains the code and pre-computed results for the paper:
+Code and pre-computed results for the paper:
 
-> **Patch purification for contaminated few-shot memory banks**
-> Sergio Villanueva, Emilio Soria-Olivas, Manuel Sanchez-Montañés
+> **Training-free reference auditing for robust commissioning of few-shot
+> industrial visual inspection**
+> Sergio Villanueva Lopez, Emilio Soria-Olivas, Manuel Sanchez-Montanes
+> (under review, 2026)
 
-Memory-bank methods for visual anomaly detection store patch descriptors from a few normal reference images and score test patches by nearest-neighbor distance. In few-shot settings (5–20 references), even a single defective support image can inject anomalous patches into the bank and degrade performance. We address this with a training-free, patch-level self-purification step that removes suspicious patches before test-time scoring using leave-one-out consistency, Mahalanobis distance, or their ensemble.
+Few-shot memory-bank inspection systems are commissioned on the factory floor
+from 5 to 20 reference images of conforming parts. If a defective or atypical
+part slips into that set (a displaced label, a smudge, an operator's hand in the
+frame), it shifts the quality standard of the whole station. This repository
+contains the full evaluation of that damage and of a **training-free audit** that
+flags suspicious reference images at commissioning so they can be removed,
+reviewed by the operator, or recaptured.
+
+The audit scores each reference image by the **largest leave-one-out patch
+distance** it contains (defects are localized, so the worst patch carries the
+signal while averaging over patches dilutes it) and flags images whose score
+exceeds a robust threshold (`median + 1.5 * 1.4826 * MAD`).
+
+## Key results
+
+35 categories from MVTec AD, VisA, BTAD and MVTec LOCO, DINOv3 features, a
+protocol with **disjoint** contamination and test pools, paired Wilcoxon over
+categories (each category is one unit, seeds averaged first).
+
+Damage of contamination: **0.6 to 2.1 AUROC points** for 10 to 20 references.
+
+Acting on the flags (Setup B, N=10, c=0.3, DINOv3 detector):
+
+| Intervention | Mean AUROC | Damage recovered | p |
+|---|---|---|---|
+| Contaminated, no action | 0.8415 | reference | reference |
+| Remove flagged images | 0.8480 | 37% | 2.0e-3 |
+| Recapture flagged images | 0.8517 | 58% | 1.2e-4 |
+| Oracle removal (ceiling of deletion) | 0.8518 | 59% | 3.0e-3 |
+| Clean reference set | 0.8591 | 100% | reference |
+
+The flagging has 0.94 removal precision and 0.52 recall, and its mean cost on
+**clean** reference sets is statistically indistinguishable from zero
+(+0.0009, 95% CI [-0.0018, +0.0033]).
+
+Two further findings:
+
+- **The auditor can be decoupled from the detector.** A fixed DINOv3 auditor
+  applied to banks built on other backbones improves them by more than each
+  detector's own self-audit does: +0.0080 over self-audit on a DINOv2 bank
+  (p=4.6e-5) and +0.0052 on a CLIP bank (p=6.7e-3). A plant can keep its
+  production detector and still audit its references with a spatially fine
+  encoder.
+
+- **Evaluation protocol matters.** Drawing contaminants from the same pool used
+  for testing (a "shared pool" design) overstates the damage by a factor of 2.7
+  (4.68 vs 1.76 AUROC points) and turns a null patch-level filtering result
+  (-5%, p=0.59 under the disjoint protocol) into an apparent 51% recovery
+  (p=1.9e-7). All headline results here use the disjoint protocol; we report the
+  shared-pool comparison as a caution for future work.
+
+## Repository layout
+
+Scripts:
+
+| File | Role |
+|------|------|
+| `precache_features.py` | Feature extraction (DINOv3 / CLIP / DINOv2) to `.npy` caches (GPU) |
+| `exp_p3_002_dirty_fewshot_full.py` | Core harness: protocols, contamination, patch-level baselines, metrics |
+| `exp_p4_image_level.py` | Image-level audit under both protocols (aggregations, thresholds; resumable) |
+| `exp_p5_assurance.py` | Decoupled auditor, recapture, review budget, global-embedding baselines |
+| `analysis_p4_final.py` | Reproduces the damage / screening / protocol numbers |
+| `analysis_p5.py` | Reproduces the transfer, recapture and review-budget numbers |
+
+Pre-computed results (`;`-separated CSVs; load with `pandas.read_csv(path, sep=";")`):
+
+| File | Content |
+|------|---------|
+| `output/exp_p3_002_full/results_v2.csv` | Shared-pool protocol (Setup A) |
+| `output/exp_p3_002_full/results_leakage_check.csv` | Disjoint-pool protocol (Setup B), patch baselines and oracle |
+| `output/exp_p4_image_level/results.csv` | Image-level audit, DINOv3 |
+| `output/exp_p4_image_level/results_clip.csv` | Image-level audit, CLIP |
+| `output/exp_p4_image_level/results_dinov2.csv` | Image-level audit, DINOv2 |
+| `output/exp_p4_image_level/FINAL_ANALYSIS.txt` | Full text report produced by `analysis_p4_final.py` |
+| `output/exp_p5_assurance/results.csv` | Assurance experiments (transfer, recapture, review, baselines) |
+
+## Reproducing the paper numbers
+
+**Without datasets or a GPU.** Every number in the paper is reproduced from the
+pre-computed CSVs above. These two scripts need only `numpy` and `scipy`:
+
+```bash
+python analysis_p4_final.py   # damage, screening, protocol-inflation exhibit
+python analysis_p5.py         # auditor transfer, recapture, review budget
+```
+
+**From scratch.**
+
+1. Download the datasets (MVTec AD, VisA, BTAD, MVTec LOCO) into `data/`.
+2. `python precache_features.py` (GPU; also `--backbone clip` and `--backbone dinov2`).
+3. `python exp_p3_002_dirty_fewshot_full.py` then `python exp_p4_image_level.py --setup both`
+   and `python exp_p5_assurance.py` (CPU only; all resumable).
+4. `python analysis_p4_final.py` and `python analysis_p5.py`.
 
 ## Requirements
 
 - Python 3.11
-- CUDA-compatible GPU (for feature extraction only)
-- ~45 GB disk space for datasets
-- ~88 GB disk space for cached features (all 35 categories)
-
-Install dependencies:
+- The analysis scripts need only `numpy` and `scipy` (see `requirements.txt`).
+- Feature extraction additionally needs `torch`, `torchvision` and
+  `transformers` (install PyTorch for your hardware from
+  https://pytorch.org/get-started/locally/), plus a CUDA GPU.
+- `faiss-cpu` is optional and only speeds up nearest-neighbor search; the code
+  falls back to `scikit-learn` without it.
 
 ```bash
 pip install -r requirements.txt
 ```
 
-Install PyTorch (+ torchvision) separately depending on your hardware (CPU/CUDA):
-- https://pytorch.org/get-started/locally/
-
-Optional (speed): if you have FAISS available, experiments run faster. The code falls back to `scikit-learn` if FAISS is not installed.
-
 ## Datasets
 
-Download and extract the following datasets into a `data/` directory:
+Download and extract into a `data/` directory (not redistributed here; each has
+its own license):
 
-| Dataset | Categories | Download |
-|---------|-----------|----------|
-| [MVTec AD](https://www.mvtec.com/company/research/datasets/mvtec-ad) | 15 | [Link](https://www.mvtec.com/company/research/datasets/mvtec-ad) |
-| [VisA](https://github.com/amazon-science/spot-diff) | 12 | [Link](https://github.com/amazon-science/spot-diff) |
-| [BTAD](https://github.com/pankajmishra000/VT-ADL) | 3 | [Link](https://github.com/pankajmishra000/VT-ADL) |
-| [MVTec LOCO AD](https://www.mvtec.com/company/research/datasets/mvtec-loco) | 5 | [Link](https://www.mvtec.com/company/research/datasets/mvtec-loco) |
+| Dataset | Categories | Source |
+|---------|-----------|--------|
+| MVTec AD | 15 | https://www.mvtec.com/company/research/datasets/mvtec-ad |
+| VisA | 12 | https://github.com/amazon-science/spot-diff |
+| BTAD | 3 | https://github.com/pankajmishra000/VT-ADL |
+| MVTec LOCO AD | 5 | https://www.mvtec.com/company/research/datasets/mvtec-loco |
 
-Expected structure:
+## A note on the earlier version of this repository
 
-```
-data/
-├── mvtec_AD/
-│   ├── bottle/
-│   │   ├── train/good/
-│   │   └── test/{good,broken_large,...}/
-│   ├── cable/
-│   └── ...
-├── VisA/
-│   ├── candle/
-│   ├── split_csv/1cls.csv
-│   └── ...
-├── btad/
-│   ├── 01/
-│   └── ...
-└── mvtec_loco_AD/
-    ├── breakfast_box/
-    └── ...
-```
-
-## Reproduction
-
-### Quick start (no datasets required)
-
-You can reproduce the paper plots/tables directly from the pre-computed CSVs in `output/`:
-
-```bash
-python analysis_statistical_tests.py
-python analysis_figures.py
-```
-
-### Step 1: Feature extraction (GPU required)
-
-Extract DINOv3 and/or CLIP features for all datasets:
-
-```bash
-python precache_features.py                  # DINOv3 ViT-L (default)
-python precache_features.py --backbone clip  # CLIP ViT-L/14
-```
-
-Features are saved to `output/feature_cache/` (DINOv3) or `output/feature_cache_clip/` (CLIP). This step takes ~2 hours per backbone on a single GPU.
-
-### Step 2: Run experiments (CPU only)
-
-```bash
-# Main experiments: 35 categories, 5 seeds, contamination rates 10-30%
-python run_experiments.py
-
-# With CLIP backbone
-python run_experiments.py --backbone clip
-
-# LOF baseline (appends to main results)
-python run_lof_baseline.py
-
-# Ablation studies
-python run_experiments.py --ablation percentile
-python run_experiments.py --ablation knn_k
-
-# Quick debug run (2 categories, 1 seed)
-python run_experiments.py --debug
-```
-
-Results are saved as CSV files in `output/exp_p3_002_full/` (DINOv3) or `output/exp_p3_002_full_clip/` (CLIP).
-
-### Step 3: Generate figures and statistical tests
-
-```bash
-python analysis_figures.py
-python analysis_statistical_tests.py
-python analysis_heatmaps.py  # requires feature cache + ground-truth masks
-```
-
-Output figures and tables are saved to `output/analysis/`.
-
-## Pre-computed results
-
-The `output/` directory contains all pre-computed CSV results used in the paper. These are the same files that would be generated by running the experiments above, so the analysis scripts can read them directly without re-running experiments.
-
-**DINOv3 backbone** (`output/exp_p3_002_full/`):
-
-| File | Description |
-|------|-------------|
-| `results_v2.csv` | Main results: 35 categories, 5 seeds, TL={10,20}, c={0,0.1,0.2,0.3}, all methods |
-| `results_extra_cont.csv` | Extended contamination rates (c up to 50%) |
-| `results_tl5.csv` | N=5 support set results |
-| `results_pixel_auroc.csv` | Pixel-level AUROC and AUPR metrics |
-| `results_leakage_check.csv` | Data integrity verification (Pool A/B split) |
-| `ablation_full_percentile.csv` | Percentile threshold ablation (35 categories) |
-| `ablation_percentile.csv` | Percentile threshold ablation (6 categories) |
-| `ablation_knn_k.csv` | KNN k ablation |
-
-**CLIP backbone** (`output/exp_p3_002_full_clip/`):
-
-| File | Description |
-|------|-------------|
-| `results_v2.csv` | CLIP backbone results (same structure as DINOv3) |
-
-## Key results
-
-At contamination rate c=0.3 with N=10 support images (DINOv3 backbone):
-
-| Method | Mean AUROC | Delta vs Clean | Recovery |
-|--------|-----------|----------------|----------|
-| No purification | 81.1% | -8.9 | -- |
-| LOO consistency | 84.7% | -5.3 | 40% |
-| Mahalanobis | 84.0% | -6.0 | 32% |
-| **Ensemble (LOO+Mahal)** | **85.7%** | **-4.3** | **51%** |
-| Oracle (clean bank) | 90.0% | 0.0 | 100% |
-
-## Citation
-
-```bibtex
-@article{villanueva2025patchpurification,
-  title={Patch purification for contaminated few-shot memory banks},
-  author={Villanueva, Sergio and Soria-Olivas, Emilio and Sanchez-Monta{\~n}{\'e}s, Manuel},
-  year={2025}
-}
-```
+Earlier commits described a patch-level purification method with a 51% recovery
+headline. That number was an artifact of a shared-pool evaluation, in which
+inserted contaminants are drawn from the same pool used at test time and match
+themselves. We identified this ourselves, switched to a disjoint-pool protocol,
+and rebuilt the study around the image-level audit reported here. The data that
+expose the artifact are in `results_v2.csv` (shared pool) and
+`results_leakage_check.csv` (disjoint pool) and were produced and published by
+us.
 
 ## License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+MIT. See [LICENSE](LICENSE).
