@@ -2,8 +2,8 @@
 
 Code and pre-computed results for the paper:
 
-> **Training-free reference auditing for robust commissioning of few-shot
-> industrial visual inspection**
+> **Cleaning Contaminated Reference Sets for Few-Shot Visual Anomaly
+> Detection**
 > Sergio Villanueva Lopez, Emilio Soria-Olivas, Manuel Sanchez-Montanes
 > (under review, 2026)
 
