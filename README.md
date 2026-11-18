@@ -1,11 +1,14 @@
-# Training-free reference auditing for few-shot industrial visual inspection
+# Cleaning Contaminated Reference Sets for Few-Shot Visual Anomaly Detection
 
-Code and pre-computed results for the paper:
+[![Paper](https://img.shields.io/badge/Paper-Electronics%202026-1F3864)](https://doi.org/10.3390/electronics15194486)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![Python 3.11](https://img.shields.io/badge/Python-3.11-blue)
 
-> **Cleaning Contaminated Reference Sets for Few-Shot Visual Anomaly
-> Detection**
-> Sergio Villanueva Lopez, Emilio Soria-Olivas, Manuel Sanchez-Montanes
-> (under review, 2026)
+Code and pre-computed results of the paper
+
+> S. Villanueva López, E. Soria-Olivas, M. Sánchez-Montañés. *Cleaning Contaminated Reference Sets for Few-Shot
+> Visual Anomaly Detection.* Electronics **15**(19), 4486, 2026.
+> [doi:10.3390/electronics15194486](https://doi.org/10.3390/electronics15194486)
 
 Few-shot memory-bank inspection systems are commissioned on the factory floor
 from 5 to 20 reference images of conforming parts. If a defective or atypical
@@ -20,7 +23,7 @@ distance** it contains (defects are localized, so the worst patch carries the
 signal while averaging over patches dilutes it) and flags images whose score
 exceeds a robust threshold (`median + 1.5 * 1.4826 * MAD`).
 
-## Key results
+## Main results
 
 35 categories from MVTec AD, VisA, BTAD and MVTec LOCO, DINOv3 features, a
 protocol with **disjoint** contamination and test pools, paired Wilcoxon over
@@ -138,6 +141,35 @@ expose the artifact are in `results_v2.csv` (shared pool) and
 `results_leakage_check.csv` (disjoint pool) and were produced and published by
 us.
 
+## Citation
+
+```bibtex
+@article{villanueva2026cleaning,
+  title   = {Cleaning Contaminated Reference Sets for Few-Shot Visual Anomaly Detection},
+  author  = {Villanueva L{\'o}pez, Sergio and Soria-Olivas, Emilio and S{\'a}nchez-Monta{\~n}{\'e}s, Manuel},
+  journal = {Electronics},
+  volume  = {15},
+  number  = {19},
+  pages   = {4486},
+  year    = {2026},
+  doi     = {10.3390/electronics15194486}
+}
+```
+
 ## License
 
-MIT. See [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE). The datasets keep their own licenses.
+
+## Related repositories
+
+This repository is one of five from my industrial PhD on anomaly detection for visual inspection (Universitat de València and Eines Vision Systems, 2026). All five work on frozen foundation-model features and do not train a network for each product.
+
+| Repository | Paper | Question |
+|---|---|---|
+| [rgb-ensembles-industrial-uad](https://github.com/sergiovillanueva/rgb-ensembles-industrial-uad) | Electronics, 2026 | Does combining several detectors improve defect localization on a real automotive benchmark? |
+| [GaLAD_Gaussian_layered_AD](https://github.com/sergiovillanueva/GaLAD_Gaussian_layered_AD) | under review | How do you set up a new product from one to five good images and still find small defects? |
+| [memory-pollution-ad](https://github.com/sergiovillanueva/memory-pollution-ad) | MAKE, 2026 | What goes wrong when many products share one memory bank, and how do you fix it? |
+| **patch-purification-fewshot** (this one) | Electronics, 2026 | What happens if a defective part slips into the reference images at commissioning? |
+| [pc-reg](https://github.com/sergiovillanueva/pc-reg) | Electronics, 2026 | How do you detect parts that look fine but are missing or in the wrong place? |
+
+Sergio Villanueva López · [LinkedIn](https://www.linkedin.com/in/sergiovillanuevalopez)
