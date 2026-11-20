@@ -1,21 +1,21 @@
-MIT License
+Copyright (c) 2026 Eines Systems S.L.U. (Eines Vision Systems). All rights reserved.
 
-Copyright (c) 2026 Sergio Villanueva López, Emilio Soria-Olivas, Manuel Sánchez-Montañés
+This code was developed at Eines Vision Systems as part of an industrial PhD carried
+out with the Universitat de Valencia. It is published so that the results of the
+associated paper can be checked and reproduced.
 
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+Permission is granted to use, copy and modify this code free of charge only for
+non-commercial research, for teaching, and for reproducing the results of the paper.
 
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+Any commercial use is not permitted without prior written permission from
+Eines Systems S.L.U. This includes, without limitation, using the code or any part of
+it in a product or service, in industrial inspection of production lines, or in work
+carried out for a customer.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+Redistributions of the code, modified or not, must keep this notice.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING FROM, OUT OF OR
+IN CONNECTION WITH THE SOFTWARE OR ITS USE.
